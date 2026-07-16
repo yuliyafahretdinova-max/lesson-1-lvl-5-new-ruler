@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Измеряем отрезки на чертеже</title>
+  <style>
+    :root {
+      --blue-deep:#0b3350;
+      --blue-mid:#134369;
+      --blue-line:#3a6f96;
+      --paper:#f6f3ea;
+      --accent:#e8823c;
+      --accent-2:#6fd0c7;
+      --ink:#0b3350;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      color: var(--paper);
+      background: var(--blue-deep);
+    }
+
+    .app {
+      width: min(1220px, calc(100% - 24px));
+      margin: 0 auto;
+      padding: 24px 0 40px;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .icon-btn {
+      display:flex; align-items:center; justify-content:center;
+      width:44px; height:44px;
+      background:var(--blue-mid);
+      border:1px solid var(--blue-line);
+      color:var(--paper);
+      border-radius:6px;
+      cursor:pointer;
+      transition:background .15s ease, transform .1s ease;
+      padding:0;
+    }
+    .icon-btn svg{ width:21px; height:21px; stroke:var(--paper); fill:none; }
+    .icon-btn:hover{ background:#1c5581; }
+    .icon-btn:active{ transform:translateY(1px); }
+
+    .stage {
+      overflow: hidden;
+      border: 1px solid var(--blue-line);
+      border-radius: 10px;
+      background: var(--blue-mid);
+      padding: 14px;
+    }
+
+    #workspace {
+      display: block;
+      width: 100%;
+      height: auto;
+      min-height: 600px;
+      touch-action: none;
+      user-select: none;
+      background: var(--paper);
+      border-radius: 4px;
+    }
+
+    .geometry-line {
+      fill: none;
+      stroke: var(--ink);
+      stroke-width: 6;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .point {
+      fill: var(--ink);
+      stroke: var(--paper);
+      stroke-width: 2.5;
+    }
+
+    .label {
+      fill: var(--ink);
+      font-size: 28px;
+      font-weight: 800;
+      font-family: Georgia, serif;
+      paint-order: stroke;
+      stroke: var(--paper);
+      stroke-width: 6px;
+      stroke-linejoin: round;
+    }
+
+    .ruler-body {
+      fill: #e9dcb8;
+      stroke: #7a5a2a;
+      stroke-width: 2;
+      filter: drop-shadow(0 6px 10px rgba(0,0,0,.3));
+    }
+
+    .ruler-grip { cursor: grab; }
+    .ruler-grip:active { cursor: grabbing; }
+    .rotate-handle { cursor: crosshair; }
+
+    @media (max-width: 820px) {
+      #workspace { min-height: 520px; }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="app">
+    <div class="toolbar">
+      <button class="icon-btn" id="resetBtn" type="button" title="Сбросить линейку">
+        <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 4v6h6"/>
+          <path d="M5.5 15A8 8 0 0018 8"/>
+        </svg>
+      </button>
+      <button class="icon-btn" id="fullscreenBtn" type="button" title="На весь экран">
+        <svg viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 9V5a1 1 0 0 1 1-1h4"/>
+          <path d="M20 9V5a1 1 0 0 0-1-1h-4"/>
+          <path d="M4 15v4a1 1 0 0 0 1 1h4"/>
+          <path d="M20 15v4a1 1 0 0 1-1 1h-4"/>
+        </svg>
+      </button>
+    </div>
+
+    <section class="stage">
+      <svg id="workspace" viewBox="0 0 1200 720" role="img" aria-label="Чертёж с точками и перемещаемой линейкой">
+        <!-- Прямая A–B–D -->
+        <line class="geometry-line" x1="156.42" y1="567.81" x2="859.02" y2="-10.52" />
+
+        <!-- Прямая N–B–C -->
+        <line class="geometry-line" x1="115.92" y1="217.28" x2="1100.73" y2="390.93" />
+
+        <!-- Отрезок A–C -->
+        <line class="geometry-line" x1="287.68" y1="459.77" x2="824.99" y2="342.3" />
+
+        <!-- Точки -->
+        <g aria-label="Точки чертежа">
+          <circle class="point" cx="287.68" cy="459.77" r="9"/>
+          <text class="label" x="263.68" y="511.77">A</text>
+
+          <circle class="point" cx="500" cy="285" r="9"/>
+          <text class="label" x="478" y="257">B</text>
+
+          <circle class="point" cx="824.99" cy="342.3" r="9"/>
+          <text class="label" x="834.99" y="394.3">C</text>
+
+          <circle class="point" cx="627.39" cy="180.14" r="9"/>
+          <text class="label" x="619.39" y="150.14">D</text>
+
+          <circle class="point" cx="283.34" cy="246.8" r="9"/>
+          <text class="label" x="293.34" y="218.8">N</text>
+        </g>
+
+        <!-- Перемещаемая линейка: 12 см, 55 SVG-единиц на 1 см -->
+        <g id="ruler" transform="translate(265 625) rotate(0)">
+          <g id="rulerGrip" class="ruler-grip">
+            <rect class="ruler-body" x="0" y="-40" width="660" height="80" rx="11"/>
+            <g id="ticks"></g>
+          </g>
+
+          <line x1="660" y1="0" x2="700" y2="0" stroke="#e8823c" stroke-width="3" stroke-dasharray="5 5"/>
+          <circle id="rotateHandle" class="rotate-handle" cx="713" cy="0" r="16" fill="#e8823c" stroke="#f6f3ea" stroke-width="4"/>
+        </g>
+      </svg>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      'use strict';
+
+      const svg = document.getElementById('workspace');
+      const ruler = document.getElementById('ruler');
+      const grip = document.getElementById('rulerGrip');
+      const rotateHandle = document.getElementById('rotateHandle');
+      const ticks = document.getElementById('ticks');
+      const resetBtn = document.getElementById('resetBtn');
+      const fullscreenBtn = document.getElementById('fullscreenBtn');
+
+      const PX_PER_CM = 55;
+      const RULER_CM = 12;
+
+      let state = { x: 265, y: 625, angle: 0 };
+      let interaction = null;
+
+      function createSvgElement(name, attrs = {}) {
+        const element = document.createElementNS('http://www.w3.org/2000/svg', name);
+        Object.entries(attrs).forEach(([key, value]) => element.setAttribute(key, value));
+        return element;
+      }
+
+      function buildTicks() {
+        for (let mm = 0; mm <= RULER_CM * 10; mm += 1) {
+          const x = mm * (PX_PER_CM / 10);
+          const isCm = mm % 10 === 0;
+          const isHalfCm = mm % 5 === 0;
+          const height = isCm ? 27 : (isHalfCm ? 19 : 11);
+
+          ticks.appendChild(createSvgElement('line', {
+            x1: x, y1: -40, x2: x, y2: -40 + height,
+            stroke: '#7a5a2a',
+            'stroke-width': isCm ? 2 : (isHalfCm ? 1.5 : 1)
+          }));
+
+          if (isCm) {
+            const label = createSvgElement('text', {
+              x,
+              y: -8,
+              'text-anchor': mm === 0 ? 'start' : (mm === RULER_CM * 10 ? 'end' : 'middle'),
+              'font-size': 12,
+              'font-weight': 800,
+              fill: '#5f4300'
+            });
+            label.textContent = String(mm / 10);
+            ticks.appendChild(label);
+          }
+        }
+      }
+
+      function svgPoint(event) {
+        const point = svg.createSVGPoint();
+        point.x = event.clientX;
+        point.y = event.clientY;
+        return point.matrixTransform(svg.getScreenCTM().inverse());
+      }
+
+      function updateRuler() {
+        ruler.setAttribute('transform', `translate(${state.x} ${state.y}) rotate(${state.angle})`);
+      }
+
+      function normalizeAngle(angle) {
+        let value = angle;
+        while (value > 180) value -= 360;
+        while (value < -180) value += 360;
+        return value;
+      }
+
+      grip.addEventListener('pointerdown', (event) => {
+        event.preventDefault();
+        const point = svgPoint(event);
+        interaction = { type: 'drag', pointerId: event.pointerId, offsetX: point.x - state.x, offsetY: point.y - state.y };
+        grip.setPointerCapture(event.pointerId);
+      });
+
+      rotateHandle.addEventListener('pointerdown', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        interaction = { type: 'rotate', pointerId: event.pointerId };
+        rotateHandle.setPointerCapture(event.pointerId);
+      });
+
+      svg.addEventListener('pointermove', (event) => {
+        if (!interaction || interaction.pointerId !== event.pointerId) return;
+        const point = svgPoint(event);
+        if (interaction.type === 'drag') {
+          state.x = point.x - interaction.offsetX;
+          state.y = point.y - interaction.offsetY;
+        }
+        if (interaction.type === 'rotate') {
+          const radians = Math.atan2(point.y - state.y, point.x - state.x);
+          state.angle = normalizeAngle(radians * 180 / Math.PI);
+        }
+        updateRuler();
+      });
+
+      function stopInteraction(event) {
+        if (!interaction || interaction.pointerId !== event.pointerId) return;
+        interaction = null;
+      }
+
+      svg.addEventListener('pointerup', stopInteraction);
+      svg.addEventListener('pointercancel', stopInteraction);
+
+      resetBtn.addEventListener('click', () => {
+        state = { x: 265, y: 625, angle: 0 };
+        updateRuler();
+      });
+
+      fullscreenBtn.addEventListener('click', async () => {
+        try {
+          if (!document.fullscreenElement) {
+            await document.documentElement.requestFullscreen();
+          } else {
+            await document.exitFullscreen();
+          }
+        } catch (error) {
+          console.warn('Полноэкранный режим недоступен:', error);
+        }
+      });
+
+      buildTicks();
+      updateRuler();
+    })();
+  </script>
+</body>
+</html>
